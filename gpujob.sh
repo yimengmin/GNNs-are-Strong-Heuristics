@@ -21,11 +21,11 @@ LOGFILE=Log/S${SIZE}TrainHisShift${SFT}L${NLAYER}Niter${NITER}Hid${HID}Sct${SCT}
 
 # Redirect stdout and stderr
 exec > "${LOGFILE}" 2>&1
-
 # Run training
-python -u main.py \
-  --train_data ../UTSPHardTSP100Accereate/data/tsp_${SIZE}_uniform_train.pt \
-  --val_data   ../UTSPHardTSP100Accereate/data/tsp_${SIZE}_uniform_val.pt \
+#python -u main.py \
+python -u main_milestone_training.py \
+  --train_data /mnt/beegfs/bulk/mirror/ym499/UTSPHardTSP100Accereate/data/tsp_${SIZE}_uniform_train.pt \
+  --val_data   /mnt/beegfs/bulk/mirror/ym499/UTSPHardTSP100Accereate/data/tsp_${SIZE}_uniform_val.pt \
   --shift ${SFT} \
   --distance_scale 5.0 --tau ${tau} \
   --hidden_dim ${HID} \
