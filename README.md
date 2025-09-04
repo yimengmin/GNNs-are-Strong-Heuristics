@@ -1,12 +1,5 @@
 # GNNs-are-Strong-Heuristics
 
-Got it 👍
-Here’s a full **`README.md`** that documents your SLURM training workflow, checkpointing, and resume strategy — incorporating everything we discussed.
-
----
-
-````markdown
-# SCT-TSP Training on SLURM (7-Day Window, Checkpointing & Resume)
 
 This README explains how to train the SCT-TSP model on an H100 GPU cluster with a 7-day time limit.  
 It covers **job submission**, **checkpointing**, and **resuming training safely**.
