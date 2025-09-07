@@ -163,15 +163,154 @@ def rng_pack():
     }
 
 
-def rng_restore(state):
+def _to_bytetensor(x):
+    import torch
+    if isinstance(x, torch.ByteTensor):
+        return x
+    if isinstance(x, torch.Tensor) and x.dtype == torch.uint8:
+        return x
+    if isinstance(x, bytes):
+        return torch.tensor(list(x), dtype=torch.uint8)
+    if isinstance(x, (list, tuple)):
+        return torch.tensor(x, dtype=torch.uint8)
+    return None
+
+
+
+def _coerce_cpu_bytetensor(x):
+    import torch as T
+    # Coerce to CPU uint8 tensor
+    if isinstance(x, T.Tensor):
+        return x.detach().to(device="cpu", dtype=T.uint8).contiguous()
+    if isinstance(x, (bytes, bytearray, memoryview)):
+        return T.tensor(list(x), dtype=T.uint8)
+    if isinstance(x, (list, tuple)):
+        return T.tensor(x, dtype=T.uint8)
+    return None
+
+def _valid_len(x, expected):
+    try:
+        return x is not None and x.numel() == expected
+    except Exception:
+        return False
+
+def rng_restore(state, fallback_seed: int | None = None, rank: int = 0):
+    import torch, numpy as np
+
     if not state:
         return
-    if state.get('torch') is not None:
-        torch.set_rng_state(state['torch'])
-    if state.get('cuda') is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(state['cuda'])
-    if state.get('numpy') is not None:
-        np.random.set_state(state['numpy'])
+
+    # ---- PyTorch CPU RNG ----
+    try:
+        exp_len = torch.random.get_rng_state().numel()  # expected size on this build
+        t = state.get("torch")
+        bt = _coerce_cpu_bytetensor(t)
+        if _valid_len(bt, exp_len):
+            torch.set_rng_state(bt)
+        else:
+            print(f"[Resume] Skip torch RNG: invalid/unknown format or length "
+                  f"(got {None if bt is None else bt.numel()}, expect {exp_len})")
+            if fallback_seed is not None:
+                torch.manual_seed(fallback_seed + int(rank))
+    except Exception as e:
+        print(f"[Resume] Skip torch RNG (error): {e}")
+        if fallback_seed is not None:
+            torch.manual_seed(fallback_seed + int(rank))
+
+    # ---- CUDA RNG (optional) ----
+    try:
+        c = state.get("cuda")
+        if c is not None and torch.cuda.is_available():
+            exp_cuda = torch.cuda.get_rng_state(0).numel()
+            bt_list = []
+            if isinstance(c, (list, tuple)):
+                for i, e in enumerate(c):
+                    bt_i = _coerce_cpu_bytetensor(e)
+                    if _valid_len(bt_i, exp_cuda):
+                        bt_list.append(bt_i)
+                    else:
+                        print(f"[Resume] Skip CUDA RNG for device idx {i}: bad length "
+                              f"(got {None if bt_i is None else bt_i.numel()}, expect {exp_cuda})")
+                if bt_list:
+                    torch.cuda.set_rng_state_all(bt_list)
+            else:
+                print("[Resume] Skip CUDA RNG: unsupported format")
+    except Exception as e:
+        print(f"[Resume] Skip CUDA RNG (error): {e}")
+
+    # ---- NumPy RNG ----
+    try:
+        n = state.get("numpy")
+        if n is not None:
+            if isinstance(n, dict) and {"bitgen","state","pos","has_gauss","cached_gaussian"} <= set(n.keys()):
+                np_state = (
+                    n["bitgen"],
+                    np.array(n["state"], dtype=np.uint32),
+                    int(n["pos"]),
+                    bool(n["has_gauss"]),
+                    float(n["cached_gaussian"]),
+                )
+                np.random.set_state(np_state)
+            else:
+                # legacy tuple path if still present
+                np.random.set_state(n)
+    except Exception as e:
+        print(f"[Resume] Skip NumPy RNG (error): {e}")
+
+
+#def rng_restore(state):
+#    import torch, numpy as np
+#    if not state:
+#        return
+#
+#    t = state.get('torch')
+#    if t is not None:
+#        bt = _to_bytetensor(t)
+#        if bt is not None:
+#            torch.set_rng_state(bt)
+#        else:
+#            print("[Resume] Skip torch RNG: unsupported format")
+#
+#    c = state.get('cuda')
+#    if c is not None and torch.cuda.is_available():
+#        if isinstance(c, (list, tuple)):
+#            bt_list = []
+#            for e in c:
+#                bt = _to_bytetensor(e)
+#                if bt is not None:
+#                    bt_list.append(bt)
+#            if bt_list:
+#                torch.cuda.set_rng_state_all(bt_list)
+#        else:
+#            print("[Resume] Skip CUDA RNG: unsupported format")
+#
+#    n = state.get('numpy')
+#    if n is not None:
+#        try:
+#            if isinstance(n, dict) and {'bitgen','state','pos','has_gauss','cached_gaussian'} <= set(n.keys()):
+#                np_state = (
+#                    n['bitgen'],
+#                    np.array(n['state'], dtype=np.uint32),
+#                    int(n['pos']),
+#                    bool(n['has_gauss']),
+#                    float(n['cached_gaussian']),
+#                )
+#                np.random.set_state(np_state)
+#            else:
+#                np.random.set_state(n)  # legacy tuple path
+#        except Exception:
+#            print("[Resume] Skip NumPy RNG: unsupported format")
+#
+
+#def rng_restore(state):
+#    if not state:
+#        return
+#    if state.get('torch') is not None:
+#        torch.set_rng_state(state['torch'])
+#    if state.get('cuda') is not None and torch.cuda.is_available():
+#        torch.cuda.set_rng_state_all(state['cuda'])
+#    if state.get('numpy') is not None:
+#        np.random.set_state(state['numpy'])
 
 
 def pack_ckpt(args, model, optimizer, epoch, global_step, best_val, history):
@@ -188,9 +327,39 @@ def pack_ckpt(args, model, optimizer, epoch, global_step, best_val, history):
     }
 
 
-def load_ckpt(path: str, map_location: str):
-    return torch.load(path, map_location=map_location)
+#def load_ckpt(path: str, map_location: str):
+#    return torch.load(path, map_location=map_location)
 
+def load_ckpt(path: str, map_location: str):
+    import torch
+    from torch.serialization import add_safe_globals
+
+    # Allowlist legacy NumPy globals found in older ckpts
+    try:
+        import numpy as _np
+        import numpy.core.multiarray as _np_ma
+        # add ndarray & dtype classes + reconstruct + the specific UInt32 dtype class
+        add_safe_globals([
+            _np_ma._reconstruct,
+            _np.ndarray,
+            _np.dtype,
+            _np.dtypes.UInt32DType,         # <-- this was missing in your run
+        ])
+    except Exception:
+        pass
+
+    # Try safe first
+    try:
+        return torch.load(path, map_location=map_location, weights_only=True)
+    except Exception as e1:
+        print(f"[Resume] weights_only=True failed: {e1}")
+
+    # If you TRUST the checkpoint (your own file), allow unsafe path
+    try:
+        return torch.load(path, map_location=map_location, weights_only=False)
+    except Exception as e2:
+        print(f"[Resume] weights_only=False also failed: {e2}")
+        raise
 
 # ------------------------- train / validate ------------------------- #
 
@@ -199,10 +368,11 @@ def train_epoch(model, loader, optimizer, device, gstate: dict, shift=-1, distan
                 loss_smoothing=0.0, saver=None):
     model.train();  setattr(model, 'inference', False)
     tot_loss = 0.0; tot_len = 0.0; nb = 0
-    scaler = torch.cuda.amp.GradScaler(enabled=mixed)
+    #scaler = torch.cuda.amp.GradScaler(enabled=mixed)
+    scaler = torch.amp.GradScaler('cuda', enabled=mixed)
     smooth = None
 
-    for coords in tqdm(loader, desc=f"Train e{gstate['epoch']}", disable=not is_main_process()):
+    for coords in tqdm(loader, desc=f"Train {gstate['epoch']}", disable=not is_main_process()):
         coords = coords.to(device)
         dist_mat = torch.cdist(coords, coords)
         adj = torch.exp(-dist_mat / distance_scale)
@@ -245,7 +415,7 @@ def validate_epoch(model, loader, device, shift=-1, distance_scale=5.0, epoch=No
     tot = 0.0; nb = 0
     first_coords = None; first_heat = None
     with torch.no_grad():
-        for bidx, coords in enumerate(tqdm(loader, desc=f"Valid e{epoch}", disable=not is_main_process())):
+        for bidx, coords in enumerate(tqdm(loader, desc=f"Valid {epoch}", disable=not is_main_process())):
             coords = coords.to(device)
             dist_mat = torch.cdist(coords, coords)
             adj = torch.exp(-dist_mat / distance_scale)
@@ -464,7 +634,10 @@ def main():
                         state[k] = v.to(device)
         except Exception as e:
             if is_main_process(): print(f"[Resume] Optimizer state not loaded: {e}")
-        rng_restore(ckpt.get('rng_state'))
+        rank = dist.get_rank() if is_dist() else 0
+        rng_restore(ckpt.get("rng_state"), fallback_seed=args.seed, rank=rank)
+
+        #rng_restore(ckpt.get('rng_state'))
         start_epoch = int(ckpt.get('epoch', 0)) + 1
         gstate['global_step'] = int(ckpt.get('global_step', 0))
         history = ckpt.get('history', history)
