@@ -16,9 +16,25 @@ SCRIPT="trainingwithlstckpt_ddp.py"
 #SCRIPT="trainingwithlstckpt.py"     # or trainingwithlstckpt_ddp.py
 # ======================================================
 
+# Train hyperparams (edit as needed)
+EPOCHS=1000
+SIZE=500
+NITER=120
+HID=256
+NLAYER=24
+SFT=-1
+SCT=3
+OPT=adam
+WD=0.0001
+TAU=2.5
+BS_PER_GPU=80
+NUM_WORKERS=4
+DISSCALE=3.0
+
+
 # Log + sanity
 mkdir -p Log SaveModels
-LOGFILE=Log/ddp8_S500_H128_L24_N120_optadam_wd0.0001_tau3.0_$(date +%F_%H%M).log
+LOGFILE=Log/ddp8_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
 exec > "$LOGFILE" 2>&1
 
 echo "[INFO] Host: $(hostname)"
@@ -49,20 +65,6 @@ MASTER_ADDR=$(scontrol show hostnames "$SLURM_NODELIST" | head -n 1)
 MASTER_PORT=${MASTER_PORT:-29500}
 echo "[INFO] MASTER_ADDR=$MASTER_ADDR MASTER_PORT=$MASTER_PORT"
 
-# Train hyperparams (edit as needed)
-EPOCHS=1000
-SIZE=500
-NITER=120
-HID=256
-NLAYER=24
-SFT=-1
-SCT=3
-OPT=adam
-WD=0.0001
-TAU=3.0
-BS_PER_GPU=64
-NUM_WORKERS=4
-
 echo "[INFO] Starting multi-node torchrun at $(date)"
 
 # One launcher per node; each launcher spawns 4 local ranks
@@ -85,7 +87,7 @@ srun --ntasks-per-node=1 bash -lc "
       --train_data /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_train_2m.pt \
       --val_data   /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_val.pt \
       --shift ${SFT} \
-      --distance_scale 5.0 --tau ${TAU} \
+      --distance_scale ${DISSCALE} --tau ${TAU} \
       --hidden_dim ${HID} \
       --sct_order ${SCT} \
       --n_iter ${NITER} \
@@ -97,7 +99,7 @@ srun --ntasks-per-node=1 bash -lc "
       --use_scheduler --warmup_epochs 15 \
       --early_stopping --patience 50 \
       --epochs ${EPOCHS} \
-      --save_dir SaveModels_S${SIZE}NIter${n_iter}NL${n_layers}EPS${epochs}Tau${TAU}HID${HID}OPT${optimizer} --auto_resume \
+      --save_dir SaveModels/S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE} --auto_resume \
       --save_every_epochs 10
 "
 
