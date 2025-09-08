@@ -29,7 +29,7 @@ from tqdm import tqdm
 import numpy as np
 
 from cyclefastsags_stable import EnhancedUltraFastSCTGNN as GNN
-from data_generator import SimpleTSPDataset, SimpleTSPDataLoader, load_tsp_dataset
+#from data_generator import SimpleTSPDataset, SimpleTSPDataLoader, load_tsp_dataset
 from hardpermutation import to_exact_permutation_batched
 from utsploss import tsp_permutation_loss
 
