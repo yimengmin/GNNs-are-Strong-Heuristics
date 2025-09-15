@@ -28,7 +28,8 @@ from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from tqdm import tqdm
 import numpy as np
 
-from cyclefastsags_stable import EnhancedUltraFastSCTGNN as GNN
+#from cyclefastsags_stable import EnhancedUltraFastSCTGNN as GNN
+from turbo import TurboUltraFastSCTGNN as GNN
 #from data_generator import SimpleTSPDataset, SimpleTSPDataLoader, load_tsp_dataset
 from hardpermutation import to_exact_permutation_batched
 from utsploss import tsp_permutation_loss
@@ -516,6 +517,7 @@ def main():
     # Opt & sched
     ap.add_argument('--optimizer', type=str, default='adam', choices=['adam','adamw','radam','lion'])
     ap.add_argument('--weight_decay', type=float, default=1e-4)
+    ap.add_argument('--dropout', type=float, default=0.1)
     ap.add_argument('--use_scheduler', action='store_true')
     ap.add_argument('--warmup_epochs', type=int, default=15)
     ap.add_argument('--min_lr', type=float, default=1e-6)
@@ -593,11 +595,18 @@ def main():
         input_dim=2, hidden_dim=args.hidden_dim, output_dim=out_dim,
         n_layers=args.n_layers, sct_order=args.sct_order, gcn_order=args.gcn_order,
         tanh_scale=args.tanh_scale, tau=args.tau, n_iter=args.n_iter,
-        noise_scale=args.noise_scale, inference_mode=False
+        noise_scale=args.noise_scale, inference_mode=False,netdropout=args.dropout
     ).to(device)
 
     if args.ddp:
-        model = DDP(model, device_ids=[device.index], output_device=device.index, find_unused_parameters=False)
+        model = DDP(
+            model,
+            device_ids=[device.index],
+            output_device=device.index,
+            find_unused_parameters=True,     # <- key change
+            static_graph=False               # (optional) keep False since the graph differs train vs. eval
+        )
+#        model = DDP(model, device_ids=[device.index], output_device=device.index, find_unused_parameters=False)
 
     optimizer = create_optimizer(model, args.optimizer, args.lr, args.weight_decay)
 
@@ -709,7 +718,7 @@ def main():
                     f"{args.optimizer}_tau_{args.tau}_"
                     f"n_iter_{args.n_iter}_noise_{args.noise_scale}_"
                     f"shift_{args.shift}_dist_scale_{args.distance_scale}_"
-                    f"n_layers{args.n_layers}_seed_{args.seed}.ckpt"
+                    f"n_layers{args.n_layers}_seed_{args.seed}_dropout{args.dropout}.ckpt"
                 )
                 atomic_save(os.path.join(save_dir, bestmodelname), best_payload)
 #                atomic_save(os.path.join(save_dir, 'best.ckpt'), best_payload)
@@ -722,7 +731,7 @@ def main():
                     f"{args.optimizer}_tau_{args.tau}_"
                     f"n_iter_{args.n_iter}_noise_{args.noise_scale}_"
                     f"shift_{args.shift}_dist_scale_{args.distance_scale}_"
-                    f"n_layers{args.n_layers}_seed_{args.seed}.ckpt"
+                    f"n_layers{args.n_layers}_seed_{args.seed}_dropout{args.dropout}.ckpt"
                 )
                 atomic_save(os.path.join(save_dir, mname), best_payload)
 
