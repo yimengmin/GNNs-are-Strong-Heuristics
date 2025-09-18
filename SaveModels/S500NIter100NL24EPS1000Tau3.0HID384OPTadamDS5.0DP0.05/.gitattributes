@@ -1,1 +1,2 @@
 ddpbest_size_500_hidden_384_adam_tau_3.0_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers24_seed_42_dropout0.05.ckpt filter=lfs diff=lfs merge=lfs -text
+last.ckpt filter=lfs diff=lfs merge=lfs -text
