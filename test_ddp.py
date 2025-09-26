@@ -18,7 +18,9 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from cyclefastsags_stable import EnhancedUltraFastSCTGNN as GNN
+from sagmodel import FastSCTGNN as GNN
+
+
 from data_generator_ddp import (
     SimpleTSPDataset,
     build_dataloader,
@@ -304,7 +306,7 @@ def main():
         device,
         shift=shift,
         distance_scale=distance_scale,
-        enable_mc_dropout=True,
+        enable_mc_dropout=False,
     )
 
     # Save per-instance lengths (allow noise-specific subdir)

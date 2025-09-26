@@ -28,9 +28,8 @@ from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from tqdm import tqdm
 import numpy as np
 
-#from cyclefastsags_stable import EnhancedUltraFastSCTGNN as GNN
-from turbo import TurboUltraFastSCTGNN as GNN
-#from data_generator import SimpleTSPDataset, SimpleTSPDataLoader, load_tsp_dataset
+from sagmodel import FastSCTGNN as GNN
+from data_generator import SimpleTSPDataset, SimpleTSPDataLoader, load_tsp_dataset
 from hardpermutation import to_exact_permutation_batched
 from utsploss import tsp_permutation_loss
 
@@ -98,6 +97,34 @@ class WarmupCosineScheduler:
             progress = (epoch - self.warmup_epochs) / total
             progress = min(max(progress, 0.0), 1.0)
             lr = self.min_lr + (self.base_lr - self.min_lr) * 0.5 * (1 + math.cos(math.pi * progress))
+        for pg in self.optimizer.param_groups:
+            pg['lr'] = lr
+        return lr
+
+
+
+
+class WarmupExponentialScheduler:
+    """Warmup + Exponential Decay learning rate scheduler (epoch-based)."""
+    def __init__(self, optimizer, warmup_epochs, max_epochs, base_lr, min_lr=1e-6, decay_rate=0.995):
+        self.optimizer = optimizer
+        self.warmup_epochs = warmup_epochs
+        self.max_epochs = max_epochs
+        self.base_lr = base_lr
+        self.min_lr = min_lr
+        self.decay_rate = decay_rate
+
+    def step(self, epoch: int) -> float:
+        if epoch < self.warmup_epochs:
+            # Linear warmup
+            lr = self.base_lr * (epoch + 1) / max(1, self.warmup_epochs)
+        else:
+            # Exponential decay
+            steps = epoch - self.warmup_epochs
+            lr = self.base_lr * (self.decay_rate ** steps)
+            lr = max(lr, self.min_lr)
+
+        # Apply to optimizer
         for pg in self.optimizer.param_groups:
             pg['lr'] = lr
         return lr
@@ -497,13 +524,13 @@ def main():
     ap.add_argument('--val_data', type=str, default='data/tsp_100_uniform_val.pt')
 
     # Model
-    ap.add_argument('--hidden_dim', type=int, default=512)
-    ap.add_argument('--n_layers', type=int, default=8)
+    ap.add_argument('--hidden_dim', type=int, default=256)
+    ap.add_argument('--n_layers', type=int, default=16)
     ap.add_argument('--sct_order', type=int, default=4)
     ap.add_argument('--gcn_order', type=int, default=2)
-    ap.add_argument('--tanh_scale', type=float, default=40.0)
-    ap.add_argument('--tau', type=float, default=5.0)
-    ap.add_argument('--n_iter', type=int, default=60)
+    ap.add_argument('--tanh_scale', type=float, default=30.0)
+    ap.add_argument('--tau', type=float, default=3.0)
+    ap.add_argument('--n_iter', type=int, default=100)
     ap.add_argument('--noise_scale', type=float, default=0.1)
     ap.add_argument('--shift', type=int, default=-1)
     ap.add_argument('--distance_scale', type=float, default=5.0)
@@ -591,19 +618,24 @@ def main():
 
     # Model / Opt / Sched
     out_dim = train_coords.shape[1]
+#    model = GNN(
+#        input_dim=2, hidden_dim=args.hidden_dim, output_dim=out_dim,
+#        n_layers=args.n_layers, sct_order=args.sct_order, gcn_order=args.gcn_order,
+#        tanh_scale=args.tanh_scale, tau=args.tau, n_iter=args.n_iter,
+#        noise_scale=args.noise_scale, inference_mode=False,netdropout=args.dropout
+#    ).to(device)
     model = GNN(
         input_dim=2, hidden_dim=args.hidden_dim, output_dim=out_dim,
         n_layers=args.n_layers, sct_order=args.sct_order, gcn_order=args.gcn_order,
         tanh_scale=args.tanh_scale, tau=args.tau, n_iter=args.n_iter,
-        noise_scale=args.noise_scale, inference_mode=False,netdropout=args.dropout
+        noise_scale=args.noise_scale, inference_mode=False,ff_dropout=args.dropout
     ).to(device)
-
     if args.ddp:
         model = DDP(
             model,
             device_ids=[device.index],
             output_device=device.index,
-            find_unused_parameters=True,     # <- key change
+            find_unused_parameters=False,     # <- Only use find_unused_parameters=True when your model has conditional execution paths 
             static_graph=False               # (optional) keep False since the graph differs train vs. eval
         )
 #        model = DDP(model, device_ids=[device.index], output_device=device.index, find_unused_parameters=False)
