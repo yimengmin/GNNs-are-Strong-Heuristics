@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ddp_2x4
+#SBATCH --job-name=ddp_1x4
 #SBATCH --qos=low
 #SBATCH --partition=full
 #SBATCH --nodes=2
@@ -11,7 +11,7 @@
 #SBATCH --signal=B:TERM@180
 
 # ====== EDIT THESE TWO LINES TO MATCH YOUR SETUP ======
-WORKDIR="/mnt/beegfs/bulk/mirror/ym499/Turbo-TSP-GNN"
+WORKDIR="/mnt/beegfs/bulk/mirror/ym499/harmonics-AttenGNNs-are-Strong-Heuristics"
 SCRIPT="trainingwithlstckpt_ddp.py"
 #SCRIPT="trainingwithlstckpt.py"     # or trainingwithlstckpt_ddp.py
 # ======================================================
@@ -25,12 +25,18 @@ NLAYER=20
 SFT=-1
 SCT=3
 OPT=adam
-WD=0.0001
-TAU=2.5
+WD=0.000025 # WD=0.0001/4
+#WD=0.0001
+TAU=3.0
+
 BS_PER_GPU=256
 NUM_WORKERS=4
 DISSCALE=5.0
-DPOUT=0.05
+DPOUT=0.10
+#LR=0.008 # 0.002*4 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
+LR=0.008 # 0.002*sqrt{4} for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
+#LR=0.0049 # 0.002*sqrt{6}
+
 
 # Log + sanity
 mkdir -p Log SaveModels
@@ -97,12 +103,13 @@ srun --ntasks-per-node=1 bash -lc "
       --weight_decay ${WD} \
       --adaptive_grad_clip \
       --use_scheduler --warmup_epochs 15 \
-      --early_stopping --patience 50 \
+      --early_stopping --patience 100 \
       --epochs ${EPOCHS} \
       --save_dir SaveModels/S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE}DP${DPOUT} \
       --auto_resume \
       --save_every_epochs 5 \
-      --dropout ${DPOUT}
+      --dropout ${DPOUT} \
+      --lr ${LR}
 "
 
 echo "[INFO] Finished at $(date)"

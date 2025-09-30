@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=ddp_2x4
+#SBATCH --job-name=ddp_3x4
 #SBATCH --qos=low
 #SBATCH --partition=full
-#SBATCH --nodes=2
+#SBATCH --nodes=3
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:h100:4          # or a100:4 if that’s what the node actually has
 #SBATCH --cpus-per-task=32
@@ -11,7 +11,7 @@
 #SBATCH --signal=B:TERM@180
 
 # ====== EDIT THESE TWO LINES TO MATCH YOUR SETUP ======
-WORKDIR="/mnt/beegfs/bulk/mirror/ym499/Turbo-TSP-GNN"
+WORKDIR="/mnt/beegfs/bulk/mirror/ym499/harmonics-AttenGNNs-are-Strong-Heuristics"
 SCRIPT="trainingwithlstckpt_ddp.py"
 #SCRIPT="trainingwithlstckpt.py"     # or trainingwithlstckpt_ddp.py
 # ======================================================
@@ -19,22 +19,25 @@ SCRIPT="trainingwithlstckpt_ddp.py"
 # Train hyperparams (edit as needed)
 EPOCHS=1000
 SIZE=500
-NITER=100
+NITER=120
 HID=384
 NLAYER=24
 SFT=-1
 SCT=3
 OPT=adam
-WD=0.0001
+#WD=0.0001
+WD=0.000053
 TAU=3.0
-BS_PER_GPU=128
+BS_PER_GPU=80
 NUM_WORKERS=4
 DISSCALE=5.0
-DPOUT=0.05
+DPOUT=0.10
+#LR=0.006 # 0.002*3 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
+LR=0.00375 # 0.002*  80*12/512
 
 # Log + sanity
 mkdir -p Log SaveModels
-LOGFILE=Log/ddp8_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_dpout${DPOUT}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
+LOGFILE=Log/ddp12_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_dpout${DPOUT}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
 
 exec > "$LOGFILE" 2>&1
 
@@ -97,12 +100,13 @@ srun --ntasks-per-node=1 bash -lc "
       --weight_decay ${WD} \
       --adaptive_grad_clip \
       --use_scheduler --warmup_epochs 15 \
-      --early_stopping --patience 50 \
+      --early_stopping --patience 100 \
       --epochs ${EPOCHS} \
       --save_dir SaveModels/S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE}DP${DPOUT} \
       --auto_resume \
       --save_every_epochs 5 \
-      --dropout ${DPOUT}
+      --dropout ${DPOUT} \
+      --lr ${LR}
 "
 
 echo "[INFO] Finished at $(date)"

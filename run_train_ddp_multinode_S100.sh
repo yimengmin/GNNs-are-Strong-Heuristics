@@ -11,30 +11,35 @@
 #SBATCH --signal=B:TERM@180
 
 # ====== EDIT THESE TWO LINES TO MATCH YOUR SETUP ======
-WORKDIR="/mnt/beegfs/bulk/mirror/ym499/CAM-GNN-S500"
+WORKDIR="/mnt/beegfs/bulk/mirror/ym499/harmonics-AttenGNNs-are-Strong-Heuristics"
 SCRIPT="trainingwithlstckpt_ddp.py"
 #SCRIPT="trainingwithlstckpt.py"     # or trainingwithlstckpt_ddp.py
 # ======================================================
 
+
 # Train hyperparams (edit as needed)
 EPOCHS=1000
-SIZE=500
-NITER=120
+SIZE=100
+NITER=100
 HID=256
-NLAYER=24
+NLAYER=16
 SFT=-1
 SCT=3
 OPT=adam
-WD=0.0001
+WD=0.000025 # WD=0.0001/4
 TAU=3.0
-BS_PER_GPU=80
-NUM_WORKERS=8
+BS_PER_GPU=256
+NUM_WORKERS=4
 DISSCALE=5.0
-
+DPOUT=0.10
+#LR=0.008 # 0.002*4 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
+## try different LR
+LR=0.008 # 4 * 2e-3
 
 # Log + sanity
 mkdir -p Log SaveModels
-LOGFILE=Log/ddp8_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
+LOGFILE=Log/ddp8_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_dpout${DPOUT}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
+
 exec > "$LOGFILE" 2>&1
 
 echo "[INFO] Host: $(hostname)"
@@ -64,7 +69,6 @@ export OMP_NUM_THREADS=8
 MASTER_ADDR=$(scontrol show hostnames "$SLURM_NODELIST" | head -n 1)
 MASTER_PORT=${MASTER_PORT:-29500}
 echo "[INFO] MASTER_ADDR=$MASTER_ADDR MASTER_PORT=$MASTER_PORT"
-
 echo "[INFO] Starting multi-node torchrun at $(date)"
 
 # One launcher per node; each launcher spawns 4 local ranks
@@ -84,8 +88,8 @@ srun --ntasks-per-node=1 bash -lc "
     '$SCRIPT' \
       --ddp \
       --num_workers ${NUM_WORKERS} \
-      --train_data /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_train_2m.pt \
-      --val_data   /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_val.pt \
+      --train_data /mnt/beegfs/bulk/mirror/ym499/UTSPHardTSP100Accereate/data/tsp_${SIZE}_uniform_train.pt \
+      --val_data /mnt/beegfs/bulk/mirror/ym499/UTSPHardTSP100Accereate/data/tsp_${SIZE}_uniform_val.pt \
       --shift ${SFT} \
       --distance_scale ${DISSCALE} --tau ${TAU} \
       --hidden_dim ${HID} \
@@ -97,10 +101,13 @@ srun --ntasks-per-node=1 bash -lc "
       --weight_decay ${WD} \
       --adaptive_grad_clip \
       --use_scheduler --warmup_epochs 15 \
-      --early_stopping --patience 50 \
+      --early_stopping --patience 100 \
       --epochs ${EPOCHS} \
-      --save_dir SaveModels/S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE} --auto_resume \
-      --save_every_epochs 10
+      --save_dir SaveModels/S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE}DP${DPOUT} \
+      --auto_resume \
+      --save_every_epochs 5 \
+      --dropout ${DPOUT} \
+      --lr ${LR}
 "
 
 echo "[INFO] Finished at $(date)"
