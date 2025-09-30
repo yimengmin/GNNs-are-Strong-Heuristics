@@ -18,7 +18,10 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from sagmodel import FastSCTGNN as GNN
+#from sagmodel import FastSCTGNN as GNN
+#from cyclefastsags_stable_precomputemultinode import EnhancedUltraFastSCTGNN as GNN
+from sagnn import EnhancedUltraFastSCTGNN as GNN
+
 
 
 from data_generator_ddp import (

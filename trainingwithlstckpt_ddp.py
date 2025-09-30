@@ -28,7 +28,9 @@ from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from tqdm import tqdm
 import numpy as np
 
-from sagmodel import FastSCTGNN as GNN
+#from sagmodel import FastSCTGNN as GNN
+#from cyclefastsags_stable_precomputemultinode import EnhancedUltraFastSCTGNN as GNN
+from sagnn import EnhancedUltraFastSCTGNN as GNN
 from data_generator import SimpleTSPDataset, SimpleTSPDataLoader, load_tsp_dataset
 from hardpermutation import to_exact_permutation_batched
 from utsploss import tsp_permutation_loss
@@ -528,7 +530,7 @@ def main():
     ap.add_argument('--n_layers', type=int, default=16)
     ap.add_argument('--sct_order', type=int, default=4)
     ap.add_argument('--gcn_order', type=int, default=2)
-    ap.add_argument('--tanh_scale', type=float, default=30.0)
+    ap.add_argument('--tanh_scale', type=float, default=0.0)
     ap.add_argument('--tau', type=float, default=3.0)
     ap.add_argument('--n_iter', type=int, default=100)
     ap.add_argument('--noise_scale', type=float, default=0.1)
