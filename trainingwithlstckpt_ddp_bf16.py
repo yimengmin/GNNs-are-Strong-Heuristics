@@ -511,11 +511,38 @@ def main():
     save_dir = ensure_dir(args.save_dir)
 
     # Data
+    ### not use shard memory
     if is_main(): print("[Info] Loading datasets…")
     train_coords, _ = load_tsp_dataset(args.train_data)
     val_coords, _ = load_tsp_dataset(args.val_data)
     train_set = SimpleTSPDataset(train_coords)
     val_set = SimpleTSPDataset(val_coords)
+    ##################
+    ## use shard memory, run shard_tsp_dataset.py first 
+    # Data
+    #if is_main():
+    #    print("[Info] Loading datasets…")
+
+    ## --- TRAIN DATA: per-rank shard ---
+    #if args.ddp:
+    #    rank = dist.get_rank()
+    #    world_size = dist.get_world_size()
+
+    #    base, ext = os.path.splitext(args.train_data)
+    #    # Expect files like: tsp_500_uniform_train_6m_bf16_rank0of12.pt, ..., rank11of12.pt
+    #    shard_path = f"{base}_rank{rank}of{world_size}{ext}"
+    #    if is_main():
+    #        print(f"[Info] Using sharded train file for rank {rank}: {shard_path}")
+    #    train_coords, _ = load_tsp_dataset(shard_path)
+    #else:
+    #    train_coords, _ = load_tsp_dataset(args.train_data)
+
+    ## --- VAL DATA: keep as single file for now (all ranks read same val set) ---
+    #val_coords, _ = load_tsp_dataset(args.val_data)
+
+    #train_set = SimpleTSPDataset(train_coords)
+    #val_set   = SimpleTSPDataset(val_coords)
+
 
     if args.ddp:
         train_sampler = DistributedSampler(train_set, shuffle=True)
