@@ -2,9 +2,9 @@
 #SBATCH --job-name=ddp_3x4
 #SBATCH --qos=low
 #SBATCH --partition=full
-#SBATCH --nodes=3
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:h100:4          # or a100:4 if that’s what the node actually has
+#SBATCH --gres=gpu:a100:4          # or a100:4 if that’s what the node actually has
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=120G
 #SBATCH --time=7-00:00:00
@@ -12,32 +12,35 @@
 
 # ====== EDIT THESE TWO LINES TO MATCH YOUR SETUP ======
 WORKDIR="/mnt/beegfs/bulk/mirror/ym499/harmonics-AttenGNNs-are-Strong-Heuristics"
-SCRIPT="trainingwithlstckpt_ddp.py"
+SCRIPT="trainingwithlstckpt_ddp_bf16.py"
+
+
+## data: tsp_500_uniform_train_6m_bf16.pt
 #SCRIPT="trainingwithlstckpt.py"     # or trainingwithlstckpt_ddp.py
 # ======================================================
 
 # Train hyperparams (edit as needed)
 EPOCHS=1000
 SIZE=500
-NITER=120
+NITER=100
 HID=384
-NLAYER=24
+NLAYER=48
 SFT=-1
 SCT=3
 OPT=adam
-#WD=0.0001
-WD=0.000053
-TAU=3.0
-BS_PER_GPU=80
+WD=0.0001
+#WD=0.000067
+TAU=3.5
+BS_PER_GPU=50 # 42 for l=60
 NUM_WORKERS=4
 DISSCALE=5.0
-DPOUT=0.10
+DPOUT=0.5
 #LR=0.006 # 0.002*3 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
-LR=0.00375 # 0.002*  80*12/512
+LR=0.002 # 0.002
 
 # Log + sanity
 mkdir -p Log SaveModels
-LOGFILE=Log/ddp12_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_dpout${DPOUT}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
+LOGFILE=Log/BF16_ddp16_S${SIZE}_H${HID}_L${NLAYER}_N${NITER}_opt${OPT}_wd${WD}_dpout${DPOUT}_tau${TAU}_DS${DISSCALE}_$(date +%F_%H%M).log
 
 exec > "$LOGFILE" 2>&1
 
@@ -87,7 +90,7 @@ srun --ntasks-per-node=1 bash -lc "
     '$SCRIPT' \
       --ddp \
       --num_workers ${NUM_WORKERS} \
-      --train_data /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_train_4m.pt \
+      --train_data /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_train_5m.pt \
       --val_data   /mnt/beegfs/bulk/mirror/ym499/UTSPHard/data/tsp_${SIZE}_uniform_val.pt \
       --shift ${SFT} \
       --distance_scale ${DISSCALE} --tau ${TAU} \
@@ -102,11 +105,11 @@ srun --ntasks-per-node=1 bash -lc "
       --use_scheduler --warmup_epochs 15 \
       --early_stopping --patience 100 \
       --epochs ${EPOCHS} \
-      --save_dir SaveModels/S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE}DP${DPOUT} \
+      --save_dir SaveModels/BF16S${SIZE}NIter${NITER}NL${NLAYER}EPS${EPOCHS}Tau${TAU}HID${HID}OPT${OPT}DS${DISSCALE}DP${DPOUT} \
       --auto_resume \
       --save_every_epochs 5 \
       --dropout ${DPOUT} \
-      --lr ${LR}
+      --lr ${LR} 
 "
 
 echo "[INFO] Finished at $(date)"
