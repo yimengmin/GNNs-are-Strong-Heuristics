@@ -92,13 +92,14 @@ Runtime is measured using `time.perf_counter()` and includes **only the greedy a
 Example output:
 
 ```text
-[  1/1000] cost=21.374821  time=0.812 ms
-...
 ============================================================
-Mean cost     : 23.108472
-Std  cost     : 1.742913
-Mean runtime  : 0.791 ms / instance
-Std  runtime  : 0.064 ms / instance
+Dataset: ../data/tsp_500_uniform_test.pt
+Instances evaluated: 1000   N=500   start=0
+------------------------------------------------------------
+Mean cost     : 2076.016936
+Std  cost     : 60.234556
+Mean runtime  : 0.632 ms / instance
+Std  runtime  : 0.107 ms / instance
 ============================================================
 ```
 
