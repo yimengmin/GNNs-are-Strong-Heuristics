@@ -1,5 +1,0 @@
-ddpbest_size_500_hidden_384_adam_tau_3.5_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers48_seed_42_dropout0.5.ckpt filter=lfs diff=lfs merge=lfs -text
-ddpmilestone_best_up_to_epoch_350_size_500_hidden_384_adam_tau_3.5_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers48_seed_42_dropout0.5.ckpt filter=lfs diff=lfs merge=lfs -text
-ddpmilestone_best_up_to_epoch_400_size_500_hidden_384_adam_tau_3.5_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers48_seed_42_dropout0.5.ckpt filter=lfs diff=lfs merge=lfs -text
-ddpmilestone_best_up_to_epoch_450_size_500_hidden_384_adam_tau_3.5_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers48_seed_42_dropout0.5.ckpt filter=lfs diff=lfs merge=lfs -text
-ddpmilestone_best_up_to_epoch_500_size_500_hidden_384_adam_tau_3.5_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers48_seed_42_dropout0.5.ckpt filter=lfs diff=lfs merge=lfs -text
