@@ -638,6 +638,19 @@ def main():
 
     best_payload = None
 
+    best_path = os.path.join(save_dir, "best.ckpt")
+    if os.path.isfile(best_path):
+        try:
+            best_payload = load_ckpt(best_path, map_location=str(device))
+            best_val = float(best_payload.get("best_val_length", best_val))
+            gstate["best_val"] = best_val
+            if is_main():
+                print(f"[Init] Loaded best_payload from {best_path}, best_val={best_val:.2f}")
+        except Exception as e:
+            if is_main():
+                print(f"[Init] Failed to load best.ckpt: {e}")
+
+
     for epoch in range(start_epoch, args.epochs):
         gstate["epoch"] = epoch
         if args.ddp:
