@@ -25,6 +25,7 @@ python test_ddp.py   --test_data ./data/tsp_200_uniform_test.pt --save_dir test_
 To enable MC dropout during evaluation, edit `test_ddp.py` and set the following flag at line 312:
 ```python
 enable_mc_dropout = True
+```
 
 
 
@@ -36,3 +37,4 @@ python test_ddp_bf16.py   --test_data ./data/tsp_500_uniform_test.pt --save_dir 
 To enable MC dropout during evaluation, edit `test_ddp_bf16.py` and set the following flag at line 340:
 ```python
 enable_mc_dropout = True
+```
