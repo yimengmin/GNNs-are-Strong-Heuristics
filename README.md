@@ -48,3 +48,7 @@ and run
 ```
 compare_results.py file1 file2 ...
 ```
+for example: run
+```
+python compare_results.py all_tour_lengths_shift_-1_size_500.txt all_tour_lengths_shift_-1_size_500_epochs{550,500,450,400}.txt
+```
