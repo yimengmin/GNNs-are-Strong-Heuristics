@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ddp_3x4
+#SBATCH --job-name=utsp500
 #SBATCH --qos=low
 #SBATCH --partition=full
 #SBATCH --nodes=4
@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:a100:4          # or a100:4 if that’s what the node actually has
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=120G
-#SBATCH --time=7-00:00:00
+#SBATCH --time=100-00:00:00
 #SBATCH --signal=B:TERM@180
 
 # ====== EDIT THESE TWO LINES TO MATCH YOUR SETUP ======
@@ -15,7 +15,7 @@ WORKDIR="/mnt/beegfs/bulk/mirror/ym499/harmonics-AttenGNNs-are-Strong-Heuristics
 SCRIPT="trainingwithlstckpt_ddp_bf16.py"
 
 
-## data: tsp_500_uniform_train_6m_bf16.pt
+## data: tsp_500_uniform_train_5m_bf16.pt
 #SCRIPT="trainingwithlstckpt.py"     # or trainingwithlstckpt_ddp.py
 # ======================================================
 
@@ -29,13 +29,11 @@ SFT=-1
 SCT=3
 OPT=adam
 WD=0.0001
-#WD=0.000067
 TAU=3.5
 BS_PER_GPU=50 # 42 for l=60
 NUM_WORKERS=4
 DISSCALE=5.0
 DPOUT=0.5
-#LR=0.006 # 0.002*3 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
 LR=0.002 # 0.002
 
 # Log + sanity

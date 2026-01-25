@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=ddp_2x4
+#SBATCH --job-name=utsp100
 #SBATCH --qos=low
 #SBATCH --partition=full
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:h100:4          # or a100:4 if that’s what the node actually has
+#SBATCH --gres=gpu:a100:4          # or a100:4 if that’s what the node actually has
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=120G
 #SBATCH --time=7-00:00:00
@@ -32,9 +32,7 @@ BS_PER_GPU=256
 NUM_WORKERS=4
 DISSCALE=5.0
 DPOUT=0.10
-#LR=0.008 # 0.002*4 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
-## try different LR
-LR=0.008 # 4 * 2e-3
+LR=0.008 
 
 # Log + sanity
 mkdir -p Log SaveModels

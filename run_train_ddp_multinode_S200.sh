@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ddp_1x4
+#SBATCH --job-name=utsp200
 #SBATCH --qos=low
 #SBATCH --partition=full
 #SBATCH --nodes=2
@@ -33,9 +33,7 @@ BS_PER_GPU=256
 NUM_WORKERS=4
 DISSCALE=5.0
 DPOUT=0.10
-#LR=0.008 # 0.002*4 for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
 LR=0.008 # 0.002*sqrt{4} for multigpu training, Learning Rate scaling, for reference, set 2e-3 for bs=512
-#LR=0.0049 # 0.002*sqrt{6}
 
 
 # Log + sanity

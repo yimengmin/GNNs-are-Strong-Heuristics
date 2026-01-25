@@ -15,7 +15,6 @@ For TSP-500 experiments, I use float16 (bf16) precision. All performance results
 - TSP 100
 ```
 python test_ddp.py   --test_data ./data/tsp_100_uniform_test.pt --save_dir test_results_shift  --num_nodes 100  --model_path SaveModels/S100NIter100NL16EPS1000Tau3.0HID256OPTadamDS5.0DP0.10/ddpbest_size_100_hidden_256_adam_tau_3.0_n_iter_100_noise_0.1_shift_-1_dist_scale_5.0_n_layers16_seed_42_dropout0.1.ckpt --batch_size 512
-
 ```
 - TSP 200
 ```
@@ -52,3 +51,7 @@ for example: run
 ```
 python compare_results.py all_tour_lengths_shift_-1_size_500.txt all_tour_lengths_shift_-1_size_500_epochs{550,500,450,400}.txt
 ```
+
+
+## MISC
+the shift -1 notation is adapted from: https://github.com/yimengmin/Structure-As-Search
